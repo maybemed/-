@@ -118,6 +118,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -130,6 +131,7 @@
     <ClCompile Include="chess.h" />
     <ClCompile Include="functions.h" />
     <ClCompile Include="functions_defination.cpp" />
+    <ClCompile Include="HardAI.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="parameter.h" />
   </ItemGroup>

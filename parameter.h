@@ -1,5 +1,6 @@
 #ifndef PARAMETER
 #define PARAMETER
+//#define DEBUG
 //0表示AI，1表示玩家
 const int AI_PLAYER = 0;
 const int HUMAN_PLAYER = 1;

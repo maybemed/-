@@ -30,12 +30,21 @@ class Chess {
 	int AI_score[15][15];
 	int human_color = 2;
 	int AI_color = 1;
+	bool have_backed = false;//记录是否刚刚进行一次悔棋
 	Point last_land{};//上一次落子的坐标
+	Point second_last_land;//上上次落子坐标，用于悔棋操作
+	Point third_last_land;//上上上次落子坐标，用于人机对战悔棋
+	Point AIPoint{};
 public:
-	Chess() { last_land.col = -1; last_land.row = -1; }
+	Point temp;//迫不得已定义，逻辑十分混乱，别再用它了
+	bool special_AI_land = false;//判断AI上一次是否落在了单独写的活四/连五上，即判断AIPoint是否刚刚发挥作用,用于判断WinCheck的执行
+	Chess() {
+		last_land.col = -1; last_land.row = -1;
+		AIPoint.row = -1; AIPoint.col = -1;
+	}
 	int winner = 0;
 	bool empty = true;
-	int mode = 3;//1-玩家对战,2-人机-人执黑，3-人机-人执白
+	int mode = 0;//1-玩家对战,2-人机-简单，3-人机-困难
 	int AI_x, AI_y;//AI即将下的落子x，y
 
 	void init();//全部初始化，重新开始游戏
@@ -46,12 +55,14 @@ public:
 	void AIPlay();//ai落子
 	void AIPlayNew(int depth);
 	void CaculateScore();//计算落子得分
-	int CaculateScore(int row, int col,int type);
+	int CaculateScore(int row, int col,int type);//新算法计算落子得分
 	bool CheckNextBlack();//判断是否应该AI落子
 	int EvaluateValue(int row, int col);//计算AI_score - human-score;
 	int MinValue(int row,int col,int depth);//返回当前坐标的指定深度下的最小value
 	int MaxValue(int row, int col, int depth);//返回当前坐标的指定深度下的最大value
 	void GetMinMaxEvaluate(int depth);//决定ai下棋的位置
 	void ShowLastLand();//特别显示上一个落子
+	void BackChess(int click_x,int click_y);//判断并进行悔棋
+	void DoBack();//进行悔棋操作，用在BackChess内部
 };
 #endif

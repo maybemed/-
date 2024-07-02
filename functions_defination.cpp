@@ -9,6 +9,12 @@
 #include"chess.h"
 #include"functions.h"
 #include"parameter.h"
+#include<Windows.h>
+#include<mmsystem.h>//这是包含多媒体设备接口头文件
+#pragma comment(lib,"winmm.lib")//加载静态库
+
+IMAGE chessboard;
+IMAGE back_area;
 
 
 extern HWND main_game;
@@ -17,7 +23,9 @@ extern Chess chess;
 using namespace std;
 
 void DrawBackground() {
-	setbkcolor(RGB(255, 205, 150));
+	//setbkcolor(RGB(255, 205, 150));
+	loadimage(&chessboard, _T("sources/chessboard.jpg"));  // 背景图片文件路径
+	putimage(0, 0, &chessboard);
 	setlinecolor(BLACK);
 	for (int i = 0; i < 15; i++) {
 		line(MARGIN + i * BLOCK_WIDTH, MARGIN, MARGIN + i * BLOCK_WIDTH, MAX_Y - MARGIN);
@@ -59,8 +67,16 @@ void Chess::DrawOneChess(int x, int y) {
 	solidcircle(this_column * BLOCK_WIDTH + MARGIN, this_row * BLOCK_WIDTH + MARGIN, R);
 	land_chess[this_row][this_column] = next_color;
 	next_color = (next_color == 1) ? 2 : 1;  // 切换颜色
+	third_last_land.col = second_last_land.col;
+	third_last_land.row = second_last_land.row;
+	second_last_land.col = last_land.col;
+	second_last_land.row = last_land.row;
 	last_land.col = this_column;
 	last_land.row = this_row;
+	have_backed = false;
+	mciSendString(TEXT("close landmusic"), NULL, 0, NULL);
+	mciSendString(TEXT("open sources/land_chess1.wav alias landmusic"), NULL, 0, NULL);
+	mciSendString(TEXT("play landmusic"), 0, 0, 0);
 }
 
 bool Chess::CheckClick(ExMessage m) {
@@ -235,240 +251,6 @@ bool GameAgain(int& winner) {
 		return false;
 }
 
-void Chess::CaculateScore() {
-	int human_num = 0;
-	int AI_num = 0;
-	int empty_num = 0;
-	int directs[4][2] = { {1,0},{1,1},{0,1},{-1,1} };
-
-	memset(human_score, 0, sizeof(human_score));
-	memset(AI_score, 0, sizeof(AI_score));
-	for (int row = 0; row < N; row++) {
-		for (int col = 0; col < N; col++) {
-			human_score[row][col] = scoreMap[row][col];
-			AI_score[row][col] = scoreMap[row][col];
-			if (land_chess[row][col] == 0) {
-				for (int k = 0; k < 4; k++) {
-					int x = directs[k][0];
-					int y = directs[k][1];
-					//reset
-					human_num = 0;
-					AI_num = 0;
-					empty_num = 0;
-
-					//Calculate human score. (Forward)
-					//假定人为白棋，所以玩家的棋子颜色为2
-					for (int i = 1; i <= 4; i++) {
-						if (row + i * y > 14 || col + i * x > 14)
-							break;
-						if (land_chess[row + i * y][col + i * x] == 2) {//Human chess point.
-							human_num++;
-						}
-						else if (land_chess[row + i * y][col + i * x] == 0) {//Empty points.
-							empty_num++;
-							break;
-						}
-						else  //AI chess point.
-							break;
-					}
-					//Calculate human score. (Backward)
-					for (int i = 1; i <= 4; i++) {
-						if (row - i * y < 0 || col - i * x < 0)
-							break;
-						if (land_chess[row - i * y][col - i * x] == 2) {//Human chess point.
-							human_num++;
-						}
-						else if (land_chess[row - i * y][col - i * x] == 0) {//Empty points.
-							empty_num++;
-							break;
-						}
-						else  //AI chess point.
-							break;
-					}
-
-					//Check which type of chess is it.
-					if (human_num == 1) {//两子相连				
-						if (empty_num == 1) { //眠二
-#ifdef debug
-							cout << "玩家有眠二" << endl;
-#endif
-							human_score[row][col] += (3 - 1);
-						}
-						else if (empty_num == 2) {//活二
-							human_score[row][col] += (5 - 1);
-#ifdef debug
-							cout << "玩家有活二" << endl;
-#endif
-						}
-
-					}
-					else if (human_num == 2) {
-						if (empty_num == 1) {//眠三
-							human_score[row][col] += (50 - 1);
-#ifdef debug
-							cout << "玩家有眠三" << endl;
-#endif
-						}
-						else if (empty_num == 2) {//活三
-							human_score[row][col] += (200 - 1);
-#ifdef debug
-							cout << "玩家有活三" << endl;
-#endif
-						}
-					}
-					else if (human_num == 3) {
-						if (empty_num == 1) {//冲四
-							human_score[row][col] += (500 - 1);
-#ifdef debug
-							cout << "玩家有冲四" << endl;
-#endif
-						}
-						else if (empty_num == 2) {//活四
-							human_score[row][col] += (10000 - 1);
-#ifdef debug
-							cout << "玩家有活四" << endl;
-#endif
-						}
-					}
-					else if (human_num == 4) {//连五
-						human_score[row][col] += (100000 - 1);
-#ifdef debug
-						cout << "玩家有活五" << endl;
-#endif
-
-					}
-					else {
-						human_score[row][col] += 1;
-					}
-
-
-					empty_num = 0;
-					//Calculate AI score. (Forward)
-					for (int i = 1; i <= 4; i++) {
-						if (row + i * y > 14 || col + i * x > 14)
-							break;
-						if (land_chess[row + i * y][col + i * x] == 1) {//Ai chess point.
-							AI_num++;
-						}
-						else if (land_chess[row + i * y][col + i * x] == 0) {//Empty points.
-							empty_num++;
-							break;
-						}
-						else  //human chess point.
-							break;
-					}
-
-
-					//Calculate AI score. (Backward)
-					for (int i = 1; i <= 4; i++) {
-						if (row - i * y < 0 || col - i * x < 0)
-							break;
-						if (land_chess[row - i * y][col - i * x] == 1) {//AI chess point.
-							AI_num++;
-						}
-						else if (land_chess[row - i * y][col - i * x] == 0) {//Empty points.
-							empty_num++;
-							break;
-						}
-						else  //Human chess point.
-							break;
-					}
-
-					//Check which type of chess is it.
-					if (AI_num == 1) {//两子相连				
-						if (empty_num == 1) { //眠二
-							AI_score[row][col] += 3;
-#ifdef debug
-							cout << "AI有眠二" << endl;
-#endif
-						}
-						else if (empty_num == 2) {//活二
-							AI_score[row][col] += 5;
-#ifdef debug
-							cout << "AI有活二" << endl;
-#endif
-						}
-
-					}
-					else if (AI_num == 2) {
-						if (empty_num == 1) {//眠三
-							AI_score[row][col] += 50;
-#ifdef debug
-							cout << "AI有眠三" << endl;
-#endif
-						}
-						else if (empty_num == 2) {//活三
-							AI_score[row][col] += 200;
-#ifdef debug
-							cout << "AI有活三" << endl;
-#endif
-						}
-					}
-					else if (AI_num == 3) {
-						if (empty_num == 1) {//冲四
-							AI_score[row][col] += 500;
-#ifdef debug
-							cout << "AI有冲四" << endl;
-#endif
-						}
-						else if (empty_num == 2) {//活四
-							AI_score[row][col] += 10000;
-#ifdef debug
-							cout << "AI有活四" << endl;
-#endif
-						}
-					}
-					else if (AI_num == 4) {//连五
-						AI_score[row][col] += 100000;
-#ifdef debug
-						cout << "AI有连五" << endl;
-#endif
-
-					}
-					else {
-						AI_score[row][col] += 1;
-					}
-				}
-			}
-		}
-	}
-	int result_x, result_y;
-	int max_score = 0;
-	int flag;
-	for (int i = 0; i < N; i++)
-		for (int j = 0; j < N; j++) {
-			if (AI_score[i][j] > max_score && land_chess[i][j] == 0) {
-				max_score = AI_score[i][j];
-				result_x = j;
-				result_y = i;
-#ifdef debug
-				flag = 1;//表示是human的最高分
-#endif // 
-
-			}
-		}
-	for (int i = 0; i < N; i++)
-		for (int j = 0; j < N; j++) {
-			if (human_score[i][j] > max_score && land_chess[i][j] == 0) {
-				max_score = human_score[i][j];
-				result_x = j;
-				result_y = i;
-#ifdef debug
-				flag = 0;//表示是AI的最高分
-#endif // 
-			}
-		}
-#ifdef debug
-	if (flag == 1)
-		cout << "human的最高分, ";
-	else if (flag == 0)
-		cout << "AI的最高分, ";
-	cout << "最大处的分值为： " << max_score << endl;
-#endif
-	AI_x = result_x;
-	AI_y = result_y;
-}
-
 int Chess::CaculateScore(int row, int col, int type) {//0表示AI，1表示玩家
 	int human_num = 0;
 	int AI_num = 0;
@@ -518,31 +300,31 @@ int Chess::CaculateScore(int row, int col, int type) {//0表示AI，1表示玩家
 		//Check which type of chess is it.
 		if (human_num == 1) {//两子相连				
 			if (empty_num == 1) { //眠二
-				human_score += (3 - 1);
+				human_score += (3);
 			}
 			else if (empty_num == 2) {//活二
-				human_score += (5 - 1);
+				human_score += (5);
 			}
 
 		}
 		else if (human_num == 2) {
 			if (empty_num == 1) {//眠三
-				human_score += (50 - 1);
+				human_score += (50 );
 			}
 			else if (empty_num == 2) {//活三
-				human_score += (200 - 1);
+				human_score += (200 );
 			}
 		}
 		else if (human_num == 3) {
 			if (empty_num == 1) {//冲四
-				human_score += (500 - 1);
+				human_score += (500);
 			}
 			else if (empty_num == 2) {//活四
-				human_score += (10000 - 1);
+				human_score += (10000);
 			}
 		}
 		else if (human_num == 4) {//连五
-			human_score += (100000 - 1);
+			human_score += (100000);
 
 		}
 		else {
@@ -605,11 +387,14 @@ int Chess::CaculateScore(int row, int col, int type) {//0表示AI，1表示玩家
 			}
 			else if (empty_num == 2) {//活四
 				AI_score += 10000;
+				AIPoint.row = row;
+				AIPoint.col = col;
 			}
 		}
 		else if (AI_num == 4) {//连五
 			AI_score += 100000;
-
+			AIPoint.row = row;
+			AIPoint.col = col;
 		}
 		else {
 			AI_score += 1;
@@ -621,13 +406,6 @@ int Chess::CaculateScore(int row, int col, int type) {//0表示AI，1表示玩家
 		return AI_score;
 }
 
-
-
-void Chess::AIPlay() {
-	CaculateScore();
-	DrawOneChess(AI_x * BLOCK_WIDTH + MARGIN, AI_y * BLOCK_WIDTH + MARGIN);
-}
-
 //old CheckAiPlay
 bool Chess::CheckNextBlack() {
 	if (next_color == 1)
@@ -636,52 +414,70 @@ bool Chess::CheckNextBlack() {
 }
 
 void ShowStartPage() {
-	int circlex = 180, circley = 220;
-	settextcolor(BLACK);
-	setbkmode(TRANSPARENT);
-	settextstyle(48, 60, _T("宋体"));
-	outtextxy(200, 200, _T("开始游戏"));
-	outtextxy(200, 350, _T("模式选择"));
+	IMAGE img;
+	loadimage(&img, _T("sources/backgroundnew2.jpg"),0,0,true);  // 背景图片文件路径
+	Resize(&img, 600, 900);
+	putimage(0, 0,&img);
 
-	settextstyle(24, 20, _T("宋体"));
-	outtextxy(350, 800, _T("按o键确定"));
-	settextstyle(48, 60, _T("宋体"));
+	int circlex = 120, circley = 380;
+
 }
 
 void GraphChange(Chess&c) {
-	initgraph(MAX_X, MAX_Y);
-	cleardevice();
-	setbkcolor(WHITE);
-	ShowStartPage();
-	int flag = 1;//选择的选项
-	setfillcolor(BLACK);
-	int circlex = 180, circley = 220;
+	mciSendString(TEXT("open sources/start_music2.mp3 alias startmusic"), NULL, 0, NULL);
+	mciSendString(TEXT("play startmusic"), 0, 0, 0);
+	//3:2
+	initgraph(600, 900);
+	//cleardevice();
 	BeginBatchDraw();
+	//setbkcolor(WHITE);
+	ShowStartPage();
+	FlushBatchDraw();
+	int flag = 1;//选择的选项
+	setfillcolor(RGB(34,40,49));
 
+	int left = 140;
+	int top = 380;
+	int right = 460;
+	int bottom = 465;
+	int incre = 138;
+	int color = RGB(170, 128, 0);
+	setlinecolor(color);
+	setlinestyle(PS_SOLID | PS_JOIN_ROUND, 4);
+
+	/*int circlex = 120, circley = 420;
+	int this_r = 15;*/
 	while (true) {
 		cleardevice();
 		ShowStartPage();
-		solidcircle(circlex, circley, 20);
+		//solidcircle(circlex, circley, this_r);
+		rectangle(left, top, right, bottom);
 		FlushBatchDraw();
 		char input = _getch();
 		if (input == 'w' && flag != 1) {
 			flag--;
-			circley -= 150;
+			//circley -= 138;
+			top -= incre;
+			bottom -= incre;
 			cleardevice();
 			ShowStartPage();
 			FlushBatchDraw();
 		}
-		else if (input == 's' && flag != 2) {
+		else if (input == 's' && flag != 3) {
 			flag++;
-			circley += 150;
+			//circley += 138;
+			top += incre;
+			bottom += incre;
 			cleardevice();
 			ShowStartPage();
-			solidcircle(circlex, circley, 20);
+			//solidcircle(circlex, circley, this_r);
 			FlushBatchDraw();
 		}
 		else if (input == 'o') {
 			if (flag == 2)
 				ChooseMode(c);
+			else if (flag == 3)
+				Introduction();
 			else if (flag == 1)
 				break;
 		}
@@ -690,38 +486,48 @@ void GraphChange(Chess&c) {
 }
 void ChooseMode(Chess &c) {
 	cleardevice();
-	setbkcolor(WHITE);
-	BeginBatchDraw();
+	IMAGE mode;
+	loadimage(&mode, _T("sources/choose_modenew.jpg"), 0, 0, true);  // 背景图片文件路径
+	Resize(&mode, 600, 900);
 	int flag = 1;
-	int circlex = 80, circley = 220;
-	settextstyle(28, 24, _T("宋体"));
-	outtextxy(100, 200, _T("玩家对战"));
-	outtextxy(100, 350, _T("人机对战（玩家执黑）"));
-	outtextxy(100, 500, _T("人机对战（玩家执白）"));
-	solidcircle(circlex, circley, 20);
+	//int circlex = 60, circley = 260;
+	setlinestyle(PS_SOLID | PS_JOIN_ROUND, 3);
+	int rec_color = RGB(102, 51, 0);
+	setlinecolor(rec_color);
+	setfillcolor(BROWN);
+	putimage(0, 0, &mode);
+	//solidcircle(circlex, circley, 20);
+	int left = 50;
+	int top = 160;
+	int right = 600 - 20;
+	int bottom = 320;
+	int incre = 180;
+	rectangle(left, top, right, bottom);
 	FlushBatchDraw();
+
 	while (true) {
-		cleardevice();
-		outtextxy(100, 200, _T("玩家对战"));
-		outtextxy(100, 350, _T("人机对战（玩家执黑）"));
-		outtextxy(100, 500, _T("人机对战（玩家执白）"));
+		putimage(0, 0, &mode);
+		//solidcircle(circlex, circley, 20);
+		rectangle(left, top, right, bottom);
 		char input = _getch();
 		if (input == 'w' && flag != 1) {
+			cleardevice();
+			putimage(0, 0, &mode);
 			flag--;
-			circley -= 150;
-			outtextxy(100, 200, _T("玩家对战"));
-			outtextxy(100, 350, _T("人机对战（玩家执黑）"));
-			outtextxy(100, 500, _T("人机对战（玩家执白）"));
-			solidcircle(circlex, circley, 20);
+			//circley -= 175;
+			top -= incre;
+			bottom -= incre;
+			//solidcircle(circlex, circley, 20);
 			FlushBatchDraw();
 		}
 		else if (input == 's' && flag != 3) {
+			cleardevice();
+			putimage(0, 0, &mode);
 			flag++;
-			circley += 150;
-			outtextxy(100, 200, _T("玩家对战"));
-			outtextxy(100, 350, _T("人机对战（玩家执黑）"));
-			outtextxy(100, 500, _T("人机对战（玩家执白）"));
-			solidcircle(circlex, circley, 20);
+			//circley += 175;
+			top += incre;
+			bottom += incre;
+			//solidcircle(circlex, circley, 20);
 			FlushBatchDraw();
 		}
 		else if (input == 'o') {
@@ -729,6 +535,7 @@ void ChooseMode(Chess &c) {
 			break;
 		}
 	}
+	setfillcolor(BLACK);
 };
 
 int Chess::EvaluateValue(int row,int col) {
@@ -736,8 +543,9 @@ int Chess::EvaluateValue(int row,int col) {
 }
 
 int Chess::MinValue(int row, int col, int depth) {
-	int value = -EvaluateValue(row, col);
-	if (depth <= 0)
+	int value = EvaluateValue(row, col);
+	//if (depth <= 0 || value<-50000)
+	if(depth <= 0)
 		return value;
 	int min_value = INT_MAX;
 	for (int i = 0; i < N; i++) {
@@ -756,7 +564,8 @@ int Chess::MinValue(int row, int col, int depth) {
 
 int Chess::MaxValue(int row, int col, int depth) {
 	int value = EvaluateValue(row, col);
-	if (depth <= 0)
+	//if (depth <= 0 || abs(value)>50000)
+	if(depth <= 0)
 		return value;
 	int max_value = INT_MIN;
 	for (int i = 0; i < N; i++) {
@@ -811,27 +620,32 @@ void Chess::AIPlayNew(int depth) {
 	}
 	else {
 		GetMinMaxEvaluate(depth);
-		DrawOneChess(AI_x * BLOCK_WIDTH + MARGIN, AI_y * BLOCK_WIDTH + MARGIN);
+
+		if (AIPoint.row != -1 && AIPoint.col != -1) {
+			//定义在落子前面，表示下面进行的落子是由specialAI执行的，下次直接进行特殊的wincheck
+			special_AI_land = true;
+			DrawOneChess(AIPoint.col * BLOCK_WIDTH + MARGIN, AIPoint.row * BLOCK_WIDTH + MARGIN);
+			temp.col = AIPoint.col;
+			temp.row = AIPoint.row;
+			AIPoint.col = -1;
+			AIPoint.row = -1;
+			return;
+		}
+		else {
+			//定义在落子前面，表示下面进行的落子是由普通情况执行的，下次进行普通的wincheck
+			special_AI_land = false;
+			DrawOneChess(AI_x * BLOCK_WIDTH + MARGIN, AI_y * BLOCK_WIDTH + MARGIN);
+		}
 	}
 }
-
-//void PVP(Chess chess) {
-//	FlushBatchDraw();
-//	ExMessage m;
-//	m = getmessage(EM_MOUSE);
-//	DrawBackground();
-//	chess.DrawLandChess();
-//	if (m.message == WM_LBUTTONDOWN && chess.CheckClick(m)) {
-//		chess.DrawOneChess(m.x, m.y);
-//		FlushBatchDraw();
-//		chess.winner = chess.WinCheck(m.x, m.y);
-//		
-//	}
-//}
 
 void Chess::ShowLastLand() {
 	if (last_land.col == -1)
 		return;
+#ifdef  DEBUG
+	cout << "shou last land" << endl;
+#endif //  DEBUG
+
 	cleardevice();
 	DrawBackground();
 	chess.DrawLandChess();
@@ -858,4 +672,42 @@ void Chess::ShowLastLand() {
 		last_land.col * BLOCK_WIDTH + MARGIN + r, last_land.row * BLOCK_WIDTH + MARGIN - mar);
 	line(last_land.col * BLOCK_WIDTH + MARGIN + r, last_land.row * BLOCK_WIDTH + MARGIN + mar ,
 		last_land.col * BLOCK_WIDTH + MARGIN + r, last_land.row * BLOCK_WIDTH + MARGIN + r);
+}
+
+void Chess::BackChess(int click_x, int click_y) {
+	//悔棋区定在x:850-1050,y:150-350
+	if (!have_backed)
+		if (click_x >= 800 && click_x <= 1050 && click_y >= 150 && click_y <= 350) {
+			DoBack();
+			have_backed = true;
+		}
+}
+
+void Chess::DoBack() {
+	if (mode == 1) {//人人对战悔棋
+		land_chess[last_land.row][last_land.col] = 0;
+		next_color = (next_color == 1) ? 2 : 1;
+		last_land.row = second_last_land.row;
+		last_land.col = second_last_land.col;
+	}
+	else {//人机对战悔棋
+		land_chess[last_land.row][last_land.col] = 0;
+		land_chess[second_last_land.row][second_last_land.col] = 0;
+		last_land.row = third_last_land.row;
+		last_land.col = third_last_land.col;
+		last_land.row = third_last_land.row;
+		last_land.col = third_last_land.col;
+	}
+}
+
+void ShowBackArea() {
+	loadimage(&back_area, _T("sources/back_buttonnew2.jpg"), 200, 200, true);  // 背景图片文件路径
+	putimage(850,150,&back_area);
+}
+
+void Introduction() {
+	IMAGE intro;
+	loadimage(&intro, _T("sources/introductionnew.jpg"), 600, 900, true);  // 背景图片文件路径
+	putimage(0, 0, &intro);
+	_getch();
 }
